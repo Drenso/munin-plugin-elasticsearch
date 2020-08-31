@@ -37,23 +37,31 @@ Kentaro Yoshida - https://github.com/y-ken
 
 =cut
 
+my $protocol = exists $ENV{'protocol'} ? $ENV{'protocol'} : 'http';
 my $host = exists $ENV{'host'} ? $ENV{'host'} : 'localhost';
 my $port = exists $ENV{'port'} ? $ENV{'port'} : 9200;
+my $user = exists $ENV{'username'} ? $ENV{'username'} : '';
+my $pass = exists $ENV{'password'} ? $ENV{'password'} : '';
 
 my $ua = LWP::UserAgent->new;
 $ua->timeout(10);
 
 sub get_json_from_url {
     my $uri = shift;
-    my $res = $ua->get($uri, 'Content-Type' => 'application/json' );
+    my $req = HTTP::Request->new('GET', $uri, ['Content-Type' => 'application/json']);
+    if ($user ne '') {
+        $req->authorization_basic($user, $pass);
+    }
+    my $res = $ua->request($req);
+
     Carp::confess($res->code . " for " . $uri) unless $res->is_success;
     my $data = do { local $@; eval { decode_json($res->content) } };
     die("Could not decode JSON from: " . $res->content) unless $data;
     return $data;
 }
 
-my $data = get_json_from_url("http://$host:$port/_nodes/jvm");
-my $t_data = get_json_from_url("http://$host:$port/_nodes/stats/jvm");
+my $data = get_json_from_url("$protocol://$host:$port/_nodes/jvm");
+my $t_data = get_json_from_url("$protocol://$host:$port/_nodes/stats/jvm");
 my %out = (count => 0, peak_count => 0);
 
 foreach my $full_node_name (keys %{$data->{nodes}}) {
